@@ -29,42 +29,8 @@ on:
 
 env:
   REPOS: |
-    Palladium-hub/openmrs-module-afyastat
-    Palladium-hub/openmrs-module-appointments
-    Palladium-hub/openmrs-module-bedmanagement
-    Palladium-hub/openmrs-module-covid19
-    Palladium-hub/openmrs-module-crossborder2
-    Palladium-hub/openmrs-module-event
-    Palladium-hub/openmrs-module-facilityreporting
-    Palladium-hub/openmrs-module-kenyaemrhivtesting
-    Palladium-hub/openmrs-module-initializer
-    Palladium-hub/openmrs-module-insuranceclaims
-    Palladium-hub/openmrs-module-jasperreports
-    Palladium-hub/openmrs-module-kenyacore
-    Palladium-hub/openmrs-module-kenyadq
-    Palladium-hub/openmrs-module-kenyaemr
-    Palladium-hub/openmrs-module-kenyaEMRCashier
-    Palladium-hub/openmrs-module-kenyaEMRChart
-    Palladium-hub/openmrs-module-kenyaemrIL
-    Palladium-hub/openmrs-module-kenyaemrextras
-    Palladium-hub/openmrs-module-kenyaemr-machine-learning
-    Palladium-hub/openmrs-module-kenyaemrorderentry
-    Palladium-hub/openmrs-module-kenyaemrpsmart
-    Palladium-hub/openmrs-module-kenyakeypop
-    Palladium-hub/openmrs-module-kenyaui
-    Palladium-hub/openmrs-module-morgue
-    Palladium-hub/openmrs-module-orderexpansion
-    Palladium-hub/openmrs-module-prep
-    Palladium-hub/openmrs-module-spreadsheetimport
-    Palladium-hub/openmrs-module-commodity
-    makombe/openmrs-module-teleconsultation
-    Palladium-hub/openmrs-module-vdot
-    Palladium-hub/openmrs-module-webservices.rest
-    Palladium-hub/kenyaemr-esm-3.x
-    Palladium-hub/openmrs-esm-patient-management
-    Palladium-hub/openmrs-esm-stock-management
-    Palladium-hub/kenyaemr-esm-ward
-    Palladium-hub/openmrs-config-kenyaemr
+    Palladium-hub/openmrs-distro-palladium-group
+    Palladium-hub/openmrs-content-palladium-group
 
 jobs:
   generate-notes:
