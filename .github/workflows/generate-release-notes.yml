@@ -1,0 +1,269 @@
+name: Generate Release Notes from Multiple Repos
+
+on:
+  workflow_dispatch:
+    inputs:
+      generation_mode:
+        description: 'Generation mode'
+        required: true
+        type: choice
+        options:
+          - 'by-tags'
+          - 'by-date-range'
+      version:
+        description: 'Release version (e.g., v1.0.0)'
+        required: false
+        type: string
+      previous_tag:
+        description: 'Previous tag for comparison'
+        required: false
+        type: string
+      start_date:
+        description: 'Start date (YYYY-MM-DD)'
+        required: false
+        type: string
+      end_date:
+        description: 'End date (YYYY-MM-DD) - default: today'
+        required: false
+        type: string
+
+env:
+  REPOS: |
+    Palladium-hub/openmrs-module-afyastat
+    Palladium-hub/openmrs-module-appointments
+    Palladium-hub/openmrs-module-bedmanagement
+    Palladium-hub/openmrs-module-covid19
+    Palladium-hub/openmrs-module-crossborder2
+    Palladium-hub/openmrs-module-event
+    Palladium-hub/openmrs-module-facilityreporting
+    Palladium-hub/openmrs-module-kenyaemrhivtesting
+    Palladium-hub/openmrs-module-initializer
+    Palladium-hub/openmrs-module-insuranceclaims
+    Palladium-hub/openmrs-module-jasperreports
+    Palladium-hub/openmrs-module-kenyacore
+    Palladium-hub/openmrs-module-kenyadq
+    Palladium-hub/openmrs-module-kenyaemr
+    Palladium-hub/openmrs-module-kenyaEMRCashier
+    Palladium-hub/openmrs-module-kenyaEMRChart
+    Palladium-hub/openmrs-module-kenyaemrIL
+    Palladium-hub/openmrs-module-kenyaemrextras
+    Palladium-hub/openmrs-module-kenyaemr-machine-learning
+    Palladium-hub/openmrs-module-kenyaemrorderentry
+    Palladium-hub/openmrs-module-kenyaemrpsmart
+    Palladium-hub/openmrs-module-kenyakeypop
+    Palladium-hub/openmrs-module-kenyaui
+    Palladium-hub/openmrs-module-morgue
+    Palladium-hub/openmrs-module-orderexpansion
+    Palladium-hub/openmrs-module-prep
+    Palladium-hub/openmrs-module-spreadsheetimport
+    Palladium-hub/openmrs-module-commodity
+    makombe/openmrs-module-teleconsultation
+    Palladium-hub/openmrs-module-vdot
+    Palladium-hub/openmrs-module-webservices.rest
+    Palladium-hub/kenyaemr-esm-3.x
+    Palladium-hub/openmrs-esm-patient-management
+    Palladium-hub/openmrs-esm-stock-management
+    Palladium-hub/kenyaemr-esm-ward
+    Palladium-hub/openmrs-config-kenyaemr
+
+jobs:
+  generate-notes:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+
+    steps:
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Generate release notes (by-date-range)
+        if: github.event.inputs.generation_mode == 'by-date-range'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.NOTES_TOKEN }}
+          script: |
+            const fs = require('fs');
+            const startDate = '${{ github.event.inputs.start_date }}';
+            const endDate = '${{ github.event.inputs.end_date }}' || new Date().toISOString().split('T')[0];
+            
+            const repos = `${{ env.REPOS }}`.trim().split('\n').filter(r => r.trim());
+            
+            let allNotes = `# Release Notes\n\n`;
+            allNotes += `**Generated:** ${new Date().toISOString()}\n`;
+            allNotes += `**Period:** ${startDate} to ${endDate}\n`;
+            allNotes += `**Repositories Scanned:** ${repos.length}\n\n`;
+            allNotes += `---\n\n`;
+            
+            let totalCommits = 0;
+            let totalPRs = 0;
+            let successfulRepos = 0;
+            let failedRepos = [];
+            
+            for (const repo of repos) {
+              const [owner, name] = repo.trim().split('/');
+              console.log(`Processing: ${owner}/${name}`);
+              
+              try {
+                // Fetch commits
+                const { data: commits } = await github.rest.repos.listCommits({
+                  owner,
+                  repo: name,
+                  since: `${startDate}T00:00:00Z`,
+                  until: `${endDate}T23:59:59Z`,
+                  per_page: 100,
+                });
+                
+                // Fetch merged PRs
+                const { data: pulls } = await github.rest.search.issuesAndPullRequests({
+                  q: `repo:${owner}/${name} is:pr is:merged merged:${startDate}..${endDate}`,
+                  per_page: 100,
+                });
+                
+                const commitCount = commits.length;
+                const prCount = pulls.items.length;
+                
+                totalCommits += commitCount;
+                totalPRs += prCount;
+                
+                if (commitCount > 0 || prCount > 0) {
+                  allNotes += `## ${name}\n\n`;
+                  allNotes += `**Commits:** ${commitCount} | **Merged PRs:** ${prCount}\n\n`;
+                  
+                  if (prCount > 0) {
+                    allNotes += `### Merged Pull Requests\n`;
+                    pulls.items.slice(0, 10).forEach(pr => {
+                      allNotes += `- [#${pr.number}](${pr.html_url}) ${pr.title}\n`;
+                    });
+                    if (prCount > 10) {
+                      allNotes += `- ... and ${prCount - 10} more PRs\n`;
+                    }
+                    allNotes += `\n`;
+                  }
+                  
+                  if (commitCount > 0) {
+                    allNotes += `### Recent Commits\n`;
+                    commits.slice(0, 5).forEach(commit => {
+                      const msg = commit.commit.message.split('\n')[0];
+                      allNotes += `- [\`${commit.sha.substring(0, 7)}\`](${commit.html_url}) ${msg}\n`;
+                    });
+                    if (commitCount > 5) {
+                      allNotes += `- ... and ${commitCount - 5} more commits\n`;
+                    }
+                    allNotes += `\n`;
+                  }
+                }
+                
+                successfulRepos++;
+              } catch (error) {
+                console.error(`Error processing ${owner}/${name}: ${error.message}`);
+                failedRepos.push(`${owner}/${name}`);
+              }
+            }
+            
+            // Summary section
+            let summary = `\n---\n\n## Summary\n\n`;
+            summary += `| Metric | Count |\n`;
+            summary += `|--------|-------|\n`;
+            summary += `| Total Commits | ${totalCommits} |\n`;
+            summary += `| Total Merged PRs | ${totalPRs} |\n`;
+            summary += `| Successful Repos | ${successfulRepos}/${repos.length} |\n`;
+            summary += `| Failed Repos | ${failedRepos.length} |\n`;
+            
+            if (failedRepos.length > 0) {
+              summary += `\n### Failed to Access\n`;
+              failedRepos.forEach(repo => {
+                summary += `- ${repo}\n`;
+              });
+            }
+            
+            allNotes += summary;
+            
+            fs.writeFileSync('combined-release-notes.md', allNotes);
+            console.log('Release notes generated successfully');
+            console.log(allNotes);
+
+      - name: Generate release notes (by-tags)
+        if: github.event.inputs.generation_mode == 'by-tags'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            const version = '${{ github.event.inputs.version }}';
+            const previousTag = '${{ github.event.inputs.previous_tag }}';
+            
+            const repos = `${{ env.REPOS }}`.trim().split('\n').filter(r => r.trim());
+            
+            let allNotes = `# Release Notes - ${version}\n\n`;
+            allNotes += `**Generated:** ${new Date().toISOString()}\n`;
+            allNotes += `**Repositories Scanned:** ${repos.length}\n\n`;
+            allNotes += `---\n\n`;
+            
+            let successfulRepos = 0;
+            let failedRepos = [];
+            
+            for (const repo of repos) {
+              const [owner, name] = repo.trim().split('/');
+              console.log(`Processing: ${owner}/${name}`);
+              
+              try {
+                const { data } = await github.rest.repos.generateReleaseNotes({
+                  owner,
+                  repo: name,
+                  tag_name: version,
+                  previous_tag_name: previousTag || undefined,
+                });
+                
+                allNotes += `## ${name}\n\n`;
+                allNotes += data.body;
+                allNotes += `\n\n---\n\n`;
+                
+                successfulRepos++;
+              } catch (error) {
+                console.error(`Error processing ${owner}/${name}: ${error.message}`);
+                failedRepos.push(`${owner}/${name}`);
+              }
+            }
+            
+            // Summary
+            allNotes += `## Summary\n\n`;
+            allNotes += `- Successful: ${successfulRepos}/${repos.length}\n`;
+            allNotes += `- Failed: ${failedRepos.length}\n`;
+            
+            if (failedRepos.length > 0) {
+              allNotes += `\n### Failed to Access\n`;
+              failedRepos.forEach(repo => {
+                allNotes += `- ${repo}\n`;
+              });
+            }
+            
+            fs.writeFileSync('combined-release-notes.md', allNotes);
+            console.log('Release notes generated successfully');
+
+      - name: Upload release notes
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-notes-${{ github.run_id }}
+          path: combined-release-notes.md
+          retention-days: 90
+
+      - name: Display Summary
+        run: |
+          echo "## 📋 Release Notes Generated" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Mode:** ${{ github.event.inputs.generation_mode }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ github.event.inputs.generation_mode }}" = "by-date-range" ]; then
+            echo "**Start Date:** ${{ github.event.inputs.start_date }}" >> $GITHUB_STEP_SUMMARY
+            echo "**End Date:** ${{ github.event.inputs.end_date || 'today' }}" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "**Version:** ${{ github.event.inputs.version }}" >> $GITHUB_STEP_SUMMARY
+            echo "**From Tag:** ${{ github.event.inputs.previous_tag || 'entire history' }}" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Total Repositories:** 35" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "📥 Download artifact: `release-notes-${{ github.run_id }}`" >> $GITHUB_STEP_SUMMARY
