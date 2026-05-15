@@ -6,7 +6,7 @@ This SOP describes how to install and bring up the bundled DRC EMR/OpenMRS distr
 
 ## 2. Scope
 
-Use this SOP for a fresh Ubuntu server installation using this package. The bundled release directory still carries its upstream name:
+Use this SOP for a fresh Ubuntu server installation using this package. The bundled release directory still carries its upstream name on the release section:
 
 ```text
 DRCEMR_19.3.4-Release_14_MAY_2026
