@@ -222,7 +222,7 @@ sudo bash DRCEMR_19.3.4-Release_14_MAY_2026/post_upgrade.sh
 Then restart Tomcat:
 
 ```bash
-sudo systemctl restart tomcat9
+sudo service tomcat9 restart 
 ```
 
 Watch the logs again:
@@ -303,13 +303,13 @@ sudo ls -lh /var/backups/DRC_EMR
 Start Tomcat:
 
 ```bash
-sudo systemctl start tomcat9
+ sudo service tomcat9 start
 ```
 
 Stop Tomcat:
 
 ```bash
-sudo systemctl stop tomcat9
+ sudo service tomcat9 stop
 ```
 
 Restart Tomcat:
@@ -366,7 +366,7 @@ openmrs/
 If Tomcat logs show `openmrs.war (Permission denied)`, remove the failed extracted app, give Tomcat ownership of the full `webapps` directory, and restart Tomcat:
 
 ```bash
-sudo systemctl stop tomcat9
+ sudo service tomcat9 stop
 sudo rm -rf /var/lib/tomcat9/webapps/openmrs
 sudo chown -R tomcat:tomcat /var/lib/tomcat9/webapps
 sudo chmod 0755 /var/lib/tomcat9/webapps
